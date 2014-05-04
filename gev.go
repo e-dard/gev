@@ -92,6 +92,7 @@ func getEnv(k string, env []string) []byte {
 }
 
 func parse(v []byte, t reflect.Type) (out interface{}, err error) {
+	msg := "cannot parse %q into type "
 	if t.Kind() == reflect.Ptr {
 		switch t.Elem().Kind() {
 		case reflect.String:
@@ -104,31 +105,31 @@ func parse(v []byte, t reflect.Type) (out interface{}, err error) {
 			if v == nil {
 				return
 			}
-			o, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				err = fmt.Errorf("cannot parse %q into type *int64", v)
+			o, e := strconv.ParseInt(string(v), 10, 64)
+			if e != nil {
+				err = fmt.Errorf(msg+"*int64", v)
 			}
 			out = &o
 		case reflect.Float64:
 			if v == nil {
 				return
 			}
-			o, err := strconv.ParseFloat(string(v), 64)
-			if err != nil {
-				err = fmt.Errorf("cannot parse %q into type *float64", v)
+			o, e := strconv.ParseFloat(string(v), 64)
+			if e != nil {
+				err = fmt.Errorf(msg+"*float64", v)
 			}
 			out = &o
 		case reflect.Bool:
 			if v == nil {
 				return
 			}
-			o, err := strconv.ParseBool(string(v))
-			if err != nil {
-				err = fmt.Errorf("cannot parse %q into type *bool", v)
+			o, e := strconv.ParseBool(string(v))
+			if e != nil {
+				err = fmt.Errorf(msg+"*bool", v)
 			}
 			out = &o
 		default:
-			err = fmt.Errorf("unsupported underlying type: %T", t.Elem().Kind())
+			err = fmt.Errorf("unsupported underlying type: %v", t.Elem().Name())
 		}
 		return
 	}
@@ -136,36 +137,29 @@ func parse(v []byte, t reflect.Type) (out interface{}, err error) {
 	switch t.Kind() {
 	case reflect.Slice:
 		if t.Elem().Kind() != reflect.Uint8 {
-			err = fmt.Errorf("cannot parse %q into type []%T", v, t.Elem().Kind())
+			err = fmt.Errorf(msg+"[]%T", v, t.Elem().Kind())
 			return
 		}
 		// nil will be returned if v is nil
 		if v != nil {
 			out = []byte(v)
 		}
-		return
 	case reflect.String:
 		out = string(v)
 	case reflect.Int64:
-		o, err := strconv.ParseInt(string(v), 10, 64)
-		if err != nil {
-			err = fmt.Errorf("cannot parse %q into type int64", v)
+		if out, err = strconv.ParseInt(string(v), 10, 64); err != nil {
+			err = fmt.Errorf(msg+"int64", v)
 		}
-		out = o
 	case reflect.Float64:
-		o, err := strconv.ParseFloat(string(v), 64)
-		if err != nil {
-			err = fmt.Errorf("cannot parse %q into type float64", v)
+		if out, err = strconv.ParseFloat(string(v), 64); err != nil {
+			err = fmt.Errorf(msg+"float64", v)
 		}
-		out = o
 	case reflect.Bool:
-		o, err := strconv.ParseBool(string(v))
-		if err != nil {
-			err = fmt.Errorf("cannot parse %q into type bool", v)
+		if out, err = strconv.ParseBool(string(v)); err != nil {
+			err = fmt.Errorf(msg+"bool", v)
 		}
-		out = o
 	default:
-		err = fmt.Errorf("unsupported underlying type: %T", t.Kind())
+		err = fmt.Errorf("unsupported underlying type: %v", t.Name())
 	}
 	return
 }
