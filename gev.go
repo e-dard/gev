@@ -13,7 +13,8 @@ import (
 const tag = "env"
 
 var (
-	get = os.Getenv
+	getVal = os.Getenv
+	vars   = os.Environ
 )
 
 // Unmarshal inspects the process' environment for values that match
@@ -46,9 +47,13 @@ func Unmarshal(v interface{}) error {
 	if st.Kind() != reflect.Ptr || st.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("Unmarshal expects a pointer to a struct")
 	}
-
+	// gets the struct being pointed to
 	st = st.Elem()
-	val := reflect.ValueOf(v).Elem()
+
+	// environment variables available
+	names := vars()
+
+	target := reflect.ValueOf(v).Elem()
 	for i := 0; i < st.NumField(); i++ {
 		fi := st.Field(i)
 		// tag value
@@ -57,60 +62,67 @@ func Unmarshal(v interface{}) error {
 			// ignore fields tagged with "-" and unexported fields
 			continue
 		} else if tagv != "" {
-			v, err := parse(get(tagv), fi.Type)
+			ev, err := parse(getEnv(tagv, names), fi.Type)
 			if err != nil {
 				return err
 			}
-			val.Field(i).Set(reflect.ValueOf(v))
+			target.Field(i).Set(reflect.ValueOf(ev))
 		} else {
 			// field has no tag, but is exported field
-			v, err := parse(get(fi.Name), fi.Type)
+			ev, err := parse(getEnv(fi.Name, names), fi.Type)
 			if err != nil {
 				return err
 			}
-			val.Field(i).Set(reflect.ValueOf(v))
+			target.Field(i).Set(reflect.ValueOf(ev))
 		}
 	}
 	return nil
 }
 
-func parse(v string, t reflect.Type) (out interface{}, err error) {
-	if t.Kind() == reflect.Slice {
-		if t.Elem().Kind() != reflect.Uint8 {
-			panic("Unsupported type")
+// getEnv returns the value for an environment variable k. If there is
+// no variable k then nil is returned, while the presence of k will
+// always result in a non-nil slice being returned.
+func getEnv(k string, env []string) []byte {
+	for _, v := range env {
+		if v == k {
+			return []byte(getVal(k))
 		}
-		// return slice of bytes
-		out = []byte(v)
-		return
 	}
+	return nil
+}
 
+func parse(v []byte, t reflect.Type) (out interface{}, err error) {
 	if t.Kind() == reflect.Ptr {
 		switch t.Elem().Kind() {
 		case reflect.String:
-			out = &v
-		case reflect.Int64:
-			if v == "" {
-				break
+			if v == nil {
+				return
 			}
-			o, err := strconv.ParseInt(v, 10, 64)
+			o := string(v)
+			out = &o
+		case reflect.Int64:
+			if v == nil {
+				return
+			}
+			o, err := strconv.ParseInt(string(v), 10, 64)
 			if err != nil {
 				err = fmt.Errorf("cannot parse %q into type *int64", v)
 			}
 			out = &o
 		case reflect.Float64:
-			if v == "" {
-				break
+			if v == nil {
+				return
 			}
-			o, err := strconv.ParseFloat(v, 64)
+			o, err := strconv.ParseFloat(string(v), 64)
 			if err != nil {
 				err = fmt.Errorf("cannot parse %q into type *float64", v)
 			}
 			out = &o
 		case reflect.Bool:
-			if v == "" {
-				break
+			if v == nil {
+				return
 			}
-			o, err := strconv.ParseBool(v)
+			o, err := strconv.ParseBool(string(v))
 			if err != nil {
 				err = fmt.Errorf("cannot parse %q into type *bool", v)
 			}
@@ -122,22 +134,32 @@ func parse(v string, t reflect.Type) (out interface{}, err error) {
 	}
 
 	switch t.Kind() {
+	case reflect.Slice:
+		if t.Elem().Kind() != reflect.Uint8 {
+			err = fmt.Errorf("cannot parse %q into type []%T", v, t.Elem().Kind())
+			return
+		}
+		// nil will be returned if v is nil
+		if v != nil {
+			out = []byte(v)
+		}
+		return
 	case reflect.String:
-		out = v
+		out = string(v)
 	case reflect.Int64:
-		o, err := strconv.ParseInt(v, 10, 64)
+		o, err := strconv.ParseInt(string(v), 10, 64)
 		if err != nil {
 			err = fmt.Errorf("cannot parse %q into type int64", v)
 		}
 		out = o
 	case reflect.Float64:
-		o, err := strconv.ParseFloat(v, 64)
+		o, err := strconv.ParseFloat(string(v), 64)
 		if err != nil {
 			err = fmt.Errorf("cannot parse %q into type float64", v)
 		}
 		out = o
 	case reflect.Bool:
-		o, err := strconv.ParseBool(v)
+		o, err := strconv.ParseBool(string(v))
 		if err != nil {
 			err = fmt.Errorf("cannot parse %q into type bool", v)
 		}
