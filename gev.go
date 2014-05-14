@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 const tag = "env"
@@ -84,6 +85,7 @@ func Unmarshal(v interface{}) error {
 // always result in a non-nil slice being returned.
 func getEnv(k string, env []string) []byte {
 	for _, v := range env {
+		v = strings.Split(v, "=")[0]
 		if v == k {
 			return []byte(getVal(k))
 		}

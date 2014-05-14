@@ -2,6 +2,7 @@ package gev
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -133,5 +134,27 @@ func Test_Unmarshal(t *testing.T) {
 	expected := Example{A: "hello", B: int64(342), F: true, G: float64(2.42)}
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Expected: %v\nGot: %v\n", expected, actual)
+	}
+}
+
+func Test_getEnv(t *testing.T) {
+	if err := os.Setenv("RANDOMENV", "22"); err != nil {
+		panic(err)
+	}
+
+	if v := getEnv("RANDOMENV", os.Environ()); string(v) != "22" {
+		t.Fatalf("Expected %q, got %q\n", "22", v)
+	}
+
+	if err := os.Setenv("NEWENV", "=22"); err != nil {
+		panic(err)
+	}
+
+	if v := getEnv("NEWENV", os.Environ()); string(v) != "=22" {
+		t.Fatalf("Expected %q, got %q\n", "=22", v)
+	}
+
+	if v := getEnv("ISMISSING", os.Environ()); string(v) != "" {
+		t.Fatalf("Expected %q, got %q\n", "", v)
 	}
 }
