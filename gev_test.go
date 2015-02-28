@@ -124,14 +124,15 @@ func Test_Unmarshal(t *testing.T) {
 		e string `env:"-"`
 		F bool
 		G float64
+		H int64 `env:"bar"`
 	}
 
-	actual := Example{}
+	actual := Example{H: 293}
 	if err := unmarshal(&actual); err != nil {
 		t.Fatal(err)
 	}
 
-	expected := Example{A: "hello", B: int64(342), F: true, G: float64(2.42)}
+	expected := Example{A: "hello", B: int64(342), F: true, G: float64(2.42), H: 293}
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Expected: %v\nGot: %v\n", expected, actual)
 	}

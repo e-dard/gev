@@ -63,18 +63,24 @@ func Unmarshal(v interface{}) error {
 			// ignore fields tagged with "-" and unexported fields
 			continue
 		} else if tagv != "" {
-			ev, err := parse(getEnv(tagv, names), fi.Type)
-			if err != nil {
-				return err
+			v := getEnv(tagv, names)
+			if v != nil {
+				ev, err := parse(v, fi.Type)
+				if err != nil {
+					return err
+				}
+				target.Field(i).Set(reflect.ValueOf(ev))
 			}
-			target.Field(i).Set(reflect.ValueOf(ev))
 		} else {
 			// field has no tag, but is exported field
-			ev, err := parse(getEnv(fi.Name, names), fi.Type)
-			if err != nil {
-				return err
+			v := getEnv(fi.Name, names)
+			if v != nil {
+				ev, err := parse(v, fi.Type)
+				if err != nil {
+					return err
+				}
+				target.Field(i).Set(reflect.ValueOf(ev))
 			}
-			target.Field(i).Set(reflect.ValueOf(ev))
 		}
 	}
 	return nil
